@@ -37,3 +37,6 @@ logs/
 # Application specific
 data/knowledge_graph/*.db
 data/templates/*.tmp
+
+# Skill testing (local only)
+test-skill/projects/
