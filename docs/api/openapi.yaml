@@ -1,0 +1,229 @@
+openapi: 3.0.3
+info:
+  title: ChipForge-AI MCP API
+  description: MCP (Model Context Protocol) API for knowledge graph operations
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /sse:
+    get:
+      summary: SSE Connection Endpoint
+      description: |
+        Establish SSE connection to MCP server.
+        Returns endpoint URL for sending messages.
+      tags:
+        - MCP Connection
+      responses:
+        '200':
+          description: SSE stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                id:dd83cd39-8971-4281-aa81-7cb1ba6eb802
+                event:endpoint
+                data:/mcp/message?sessionId=dd83cd39-8971-4281-aa81-7cb1ba6eb802
+
+  /mcp/message:
+    post:
+      summary: MCP Message Endpoint
+      description: Send JSON-RPC 2.0 messages to MCP server
+      tags:
+        - MCP Message
+      parameters:
+        - name: sessionId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Session ID from SSE connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonRpcRequest'
+      responses:
+        '200':
+          description: JSON-RPC response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonRpcResponse'
+
+components:
+  schemas:
+    JsonRpcRequest:
+      type: object
+      required:
+        - jsonrpc
+        - method
+        - id
+      properties:
+        jsonrpc:
+          type: string
+          enum: ["2.0"]
+        method:
+          type: string
+          description: MCP method name
+        id:
+          type: string
+        params:
+          type: object
+
+    JsonRpcResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+        id:
+          type: string
+        result:
+          type: object
+        error:
+          type: object
+
+    # MCP Methods
+    ToolsListRequest:
+      allOf:
+        - $ref: '#/components/schemas/JsonRpcRequest'
+        - type: object
+          properties:
+            method:
+              enum: ["tools/list"]
+
+    ToolsCallRequest:
+      allOf:
+        - $ref: '#/components/schemas/JsonRpcRequest'
+        - type: object
+          properties:
+            method:
+              enum: ["tools/call"]
+            params:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Tool name (kg_init, kg_create_node, etc.)
+                arguments:
+                  type: object
+                  description: Tool arguments
+
+    # Knowledge Graph Tools
+    KgInitArgs:
+      type: object
+      required: [graphId, nodes, relations]
+      properties:
+        graphId:
+          type: string
+          description: Graph identifier
+        nodes:
+          type: string
+          description: JSON array of nodes
+        relations:
+          type: string
+          description: JSON array of relations
+
+    KgCreateNodeArgs:
+      type: object
+      required: [graphId, id, type]
+      properties:
+        graphId:
+          type: string
+        id:
+          type: string
+          pattern: ^[a-zA-Z_][a-zA-Z0-9_-]{0,59}$
+        type:
+          type: string
+          enum: [Signal, StateTransition, SignalExample]
+        properties:
+          type: string
+          description: JSON object of properties
+
+    KgCreateRelationArgs:
+      type: object
+      required: [graphId, fromId, toId, type]
+      properties:
+        graphId:
+          type: string
+        fromId:
+          type: string
+        toId:
+          type: string
+        type:
+          type: string
+          enum: [EXAMPLES, STATETRANSITION, RELATED]
+
+    KgDeleteNodeArgs:
+      type: object
+      required: [graphId, id]
+      properties:
+        graphId:
+          type: string
+        id:
+          type: string
+
+    KgDeleteRelationArgs:
+      type: object
+      required: [graphId, fromId, toId, type]
+      properties:
+        graphId:
+          type: string
+        fromId:
+          type: string
+        toId:
+          type: string
+        type:
+          type: string
+
+    KgUpdateNodeArgs:
+      type: object
+      required: [graphId, id, properties]
+      properties:
+        graphId:
+          type: string
+        id:
+          type: string
+        properties:
+          type: string
+          description: JSON object of properties
+
+    KgQueryArgs:
+      type: object
+      required: [graphId, nodeId]
+      properties:
+        graphId:
+          type: string
+        nodeId:
+          type: string
+        depth:
+          type: integer
+          default: 1
+
+    KgListArgs:
+      type: object
+      required: [graphId]
+      properties:
+        graphId:
+          type: string
+        type:
+          type: string
+          enum: [Signal, StateTransition, SignalExample]
+
+    KgResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        error:
+          type: string
+        code:
+          type: string
+          enum: [NODE_EXISTS, NODE_NOT_FOUND, RELATION_EXISTS, RELATION_NOT_FOUND, HAS_RELATIONS, INVALID_ID, INVALID_TYPE]
