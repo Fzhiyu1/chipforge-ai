@@ -24,7 +24,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 步骤2：删除内部文档
+      # 步骤2：删除内部文档和测试目录
       - name: Remove internal documentation
         run: |
           echo "🗑️ Checking for internal docs..."
@@ -33,6 +33,14 @@ jobs:
             echo "✅ Removed docs/internal/"
           else
             echo "ℹ️ No internal docs found"
+          fi
+
+          echo "🗑️ Checking for test-skill..."
+          if [ -d "test-skill" ]; then
+            rm -rf test-skill/
+            echo "✅ Removed test-skill/"
+          else
+            echo "ℹ️ No test-skill found"
           fi
 
       # 步骤3：检查是否有变更
