@@ -176,6 +176,10 @@ public class KgService {
     // ========== Private Helpers ==========
 
     private Path getGraphPath(String graphId) {
+        // Support path-style graphId (e.g., "test-skill/projects/udp_simple")
+        if (graphId.contains("/") || graphId.contains("\\")) {
+            return Paths.get(System.getProperty("user.dir"), graphId + ".kg.json");
+        }
         return Paths.get(System.getProperty("user.dir"), KG_DIR, graphId + ".json");
     }
 

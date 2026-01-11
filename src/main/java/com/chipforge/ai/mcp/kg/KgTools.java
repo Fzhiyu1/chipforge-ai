@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import io.modelcontextprotocol.spec.McpSchema.JsonSchema;
+import io.modelcontextprotocol.spec.McpSchema.TextContent;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 import org.springframework.stereotype.Component;
 
@@ -38,26 +40,33 @@ public class KgTools {
         return specs;
     }
 
-    private SyncToolSpecification createKgInit() {
-        String schema = """
-            {
-                "type": "object",
-                "properties": {
-                    "graphId": {"type": "string", "description": "Graph identifier"},
-                    "nodes": {"type": "string", "description": "JSON array of nodes"},
-                    "relations": {"type": "string", "description": "JSON array of relations"}
-                },
-                "required": ["graphId", "nodes", "relations"]
-            }
-            """;
+    private Tool buildTool(String name, String description, JsonSchema inputSchema) {
+        return new Tool(name, null, description, inputSchema, null, null, null);
+    }
 
-        return new SyncToolSpecification(
-            new Tool("kg_init", "Initialize knowledge graph with nodes and relations", schema),
-            (exchange, arguments) -> {
+    private JsonSchema buildSchema(Map<String, Object> properties, List<String> required) {
+        return new JsonSchema("object", properties, required, null, null, null);
+    }
+
+    private SyncToolSpecification createKgInit() {
+        JsonSchema schema = buildSchema(
+            Map.of(
+                "graphId", Map.of("type", "string", "description", "Graph identifier"),
+                "nodes", Map.of("type", "string", "description", "JSON array of nodes"),
+                "relations", Map.of("type", "string", "description", "JSON array of relations")
+            ),
+            List.of("graphId", "nodes", "relations")
+        );
+        Tool tool = buildTool("kg_init", "Initialize knowledge graph with nodes and relations", schema);
+
+        return SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
                 try {
-                    String graphId = (String) arguments.get("graphId");
-                    String nodesJson = (String) arguments.get("nodes");
-                    String relationsJson = (String) arguments.get("relations");
+                    Map<String, Object> args = request.arguments();
+                    String graphId = (String) args.get("graphId");
+                    String nodesJson = (String) args.get("nodes");
+                    String relationsJson = (String) args.get("relations");
 
                     List<KgNode> nodes = objectMapper.readValue(nodesJson,
                         new TypeReference<List<KgNode>>() {});
@@ -69,37 +78,35 @@ public class KgTools {
                 } catch (Exception e) {
                     return errorResult(e.getMessage());
                 }
-            }
-        );
+            })
+            .build();
     }
 
     private SyncToolSpecification createKgCreateNode() {
-        String schema = """
-            {
-                "type": "object",
-                "properties": {
-                    "graphId": {"type": "string"},
-                    "id": {"type": "string"},
-                    "type": {"type": "string", "enum": ["Signal", "StateTransition", "SignalExample"]},
-                    "properties": {"type": "string", "description": "JSON object of properties"}
-                },
-                "required": ["graphId", "id", "type"]
-            }
-            """;
+        JsonSchema schema = buildSchema(
+            Map.of(
+                "graphId", Map.of("type", "string"),
+                "id", Map.of("type", "string"),
+                "type", Map.of("type", "string", "enum", List.of("Signal", "StateTransition", "SignalExample")),
+                "properties", Map.of("type", "string", "description", "JSON object of properties")
+            ),
+            List.of("graphId", "id", "type")
+        );
+        Tool tool = buildTool("kg_create_node", "Create a new node in the knowledge graph", schema);
 
-        return new SyncToolSpecification(
-            new Tool("kg_create_node", "Create a new node in the knowledge graph", schema),
-            (exchange, arguments) -> {
+        return SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
                 try {
-                    String graphId = (String) arguments.get("graphId");
-                    String id = (String) arguments.get("id");
-                    String type = (String) arguments.get("type");
-                    String propsJson = (String) arguments.get("properties");
+                    Map<String, Object> args = request.arguments();
+                    String graphId = (String) args.get("graphId");
+                    String id = (String) args.get("id");
+                    String type = (String) args.get("type");
+                    String propsJson = (String) args.get("properties");
 
                     Map<String, Object> props = null;
                     if (propsJson != null && !propsJson.isEmpty()) {
-                        props = objectMapper.readValue(propsJson,
-                            new TypeReference<Map<String, Object>>() {});
+                        props = objectMapper.readValue(propsJson, new TypeReference<>() {});
                     }
 
                     KgResult<KgNode> result = kgService.createNode(graphId, id, type, props);
@@ -107,205 +114,195 @@ public class KgTools {
                 } catch (Exception e) {
                     return errorResult(e.getMessage());
                 }
-            }
-        );
+            })
+            .build();
     }
 
     private SyncToolSpecification createKgCreateRelation() {
-        String schema = """
-            {
-                "type": "object",
-                "properties": {
-                    "graphId": {"type": "string"},
-                    "fromId": {"type": "string"},
-                    "toId": {"type": "string"},
-                    "type": {"type": "string", "enum": ["EXAMPLES", "STATETRANSITION", "RELATED"]}
-                },
-                "required": ["graphId", "fromId", "toId", "type"]
-            }
-            """;
+        JsonSchema schema = buildSchema(
+            Map.of(
+                "graphId", Map.of("type", "string"),
+                "fromId", Map.of("type", "string"),
+                "toId", Map.of("type", "string"),
+                "type", Map.of("type", "string", "enum", List.of("EXAMPLES", "STATETRANSITION", "RELATED"))
+            ),
+            List.of("graphId", "fromId", "toId", "type")
+        );
+        Tool tool = buildTool("kg_create_relation", "Create a relation between two nodes", schema);
 
-        return new SyncToolSpecification(
-            new Tool("kg_create_relation", "Create a relation between two nodes", schema),
-            (exchange, arguments) -> {
+        return SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
                 try {
-                    String graphId = (String) arguments.get("graphId");
-                    String fromId = (String) arguments.get("fromId");
-                    String toId = (String) arguments.get("toId");
-                    String type = (String) arguments.get("type");
+                    Map<String, Object> args = request.arguments();
+                    String graphId = (String) args.get("graphId");
+                    String fromId = (String) args.get("fromId");
+                    String toId = (String) args.get("toId");
+                    String type = (String) args.get("type");
 
                     KgResult<KgRelation> result = kgService.createRelation(graphId, fromId, toId, type);
                     return toCallToolResult(result);
                 } catch (Exception e) {
                     return errorResult(e.getMessage());
                 }
-            }
-        );
+            })
+            .build();
     }
 
     private SyncToolSpecification createKgDeleteNode() {
-        String schema = """
-            {
-                "type": "object",
-                "properties": {
-                    "graphId": {"type": "string"},
-                    "id": {"type": "string"}
-                },
-                "required": ["graphId", "id"]
-            }
-            """;
+        JsonSchema schema = buildSchema(
+            Map.of(
+                "graphId", Map.of("type", "string"),
+                "id", Map.of("type", "string")
+            ),
+            List.of("graphId", "id")
+        );
+        Tool tool = buildTool("kg_delete_node", "Delete a node from the knowledge graph", schema);
 
-        return new SyncToolSpecification(
-            new Tool("kg_delete_node", "Delete a node from the knowledge graph", schema),
-            (exchange, arguments) -> {
+        return SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
                 try {
-                    String graphId = (String) arguments.get("graphId");
-                    String id = (String) arguments.get("id");
+                    Map<String, Object> args = request.arguments();
+                    String graphId = (String) args.get("graphId");
+                    String id = (String) args.get("id");
 
                     KgResult<Void> result = kgService.deleteNode(graphId, id);
                     return toCallToolResult(result);
                 } catch (Exception e) {
                     return errorResult(e.getMessage());
                 }
-            }
-        );
+            })
+            .build();
     }
 
     private SyncToolSpecification createKgDeleteRelation() {
-        String schema = """
-            {
-                "type": "object",
-                "properties": {
-                    "graphId": {"type": "string"},
-                    "fromId": {"type": "string"},
-                    "toId": {"type": "string"},
-                    "type": {"type": "string"}
-                },
-                "required": ["graphId", "fromId", "toId", "type"]
-            }
-            """;
+        JsonSchema schema = buildSchema(
+            Map.of(
+                "graphId", Map.of("type", "string"),
+                "fromId", Map.of("type", "string"),
+                "toId", Map.of("type", "string"),
+                "type", Map.of("type", "string")
+            ),
+            List.of("graphId", "fromId", "toId", "type")
+        );
+        Tool tool = buildTool("kg_delete_relation", "Delete a relation from the knowledge graph", schema);
 
-        return new SyncToolSpecification(
-            new Tool("kg_delete_relation", "Delete a relation from the knowledge graph", schema),
-            (exchange, arguments) -> {
+        return SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
                 try {
-                    String graphId = (String) arguments.get("graphId");
-                    String fromId = (String) arguments.get("fromId");
-                    String toId = (String) arguments.get("toId");
-                    String type = (String) arguments.get("type");
+                    Map<String, Object> args = request.arguments();
+                    String graphId = (String) args.get("graphId");
+                    String fromId = (String) args.get("fromId");
+                    String toId = (String) args.get("toId");
+                    String type = (String) args.get("type");
 
                     KgResult<Void> result = kgService.deleteRelation(graphId, fromId, toId, type);
                     return toCallToolResult(result);
                 } catch (Exception e) {
                     return errorResult(e.getMessage());
                 }
-            }
-        );
+            })
+            .build();
     }
 
     private SyncToolSpecification createKgUpdateNode() {
-        String schema = """
-            {
-                "type": "object",
-                "properties": {
-                    "graphId": {"type": "string"},
-                    "id": {"type": "string"},
-                    "properties": {"type": "string", "description": "JSON object of properties"}
-                },
-                "required": ["graphId", "id", "properties"]
-            }
-            """;
+        JsonSchema schema = buildSchema(
+            Map.of(
+                "graphId", Map.of("type", "string"),
+                "id", Map.of("type", "string"),
+                "properties", Map.of("type", "string", "description", "JSON object of properties")
+            ),
+            List.of("graphId", "id", "properties")
+        );
+        Tool tool = buildTool("kg_update_node", "Update node properties", schema);
 
-        return new SyncToolSpecification(
-            new Tool("kg_update_node", "Update node properties", schema),
-            (exchange, arguments) -> {
+        return SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
                 try {
-                    String graphId = (String) arguments.get("graphId");
-                    String id = (String) arguments.get("id");
-                    String propsJson = (String) arguments.get("properties");
+                    Map<String, Object> args = request.arguments();
+                    String graphId = (String) args.get("graphId");
+                    String id = (String) args.get("id");
+                    String propsJson = (String) args.get("properties");
 
-                    Map<String, Object> props = objectMapper.readValue(propsJson,
-                        new TypeReference<Map<String, Object>>() {});
-
+                    Map<String, Object> props = objectMapper.readValue(propsJson, new TypeReference<>() {});
                     KgResult<KgNode> result = kgService.updateNode(graphId, id, props);
                     return toCallToolResult(result);
                 } catch (Exception e) {
                     return errorResult(e.getMessage());
                 }
-            }
-        );
+            })
+            .build();
     }
 
     private SyncToolSpecification createKgQuery() {
-        String schema = """
-            {
-                "type": "object",
-                "properties": {
-                    "graphId": {"type": "string"},
-                    "nodeId": {"type": "string"},
-                    "depth": {"type": "integer", "default": 1}
-                },
-                "required": ["graphId", "nodeId"]
-            }
-            """;
+        JsonSchema schema = buildSchema(
+            Map.of(
+                "graphId", Map.of("type", "string"),
+                "nodeId", Map.of("type", "string"),
+                "depth", Map.of("type", "integer", "default", 1)
+            ),
+            List.of("graphId", "nodeId")
+        );
+        Tool tool = buildTool("kg_query", "BFS query related nodes", schema);
 
-        return new SyncToolSpecification(
-            new Tool("kg_query", "BFS query related nodes", schema),
-            (exchange, arguments) -> {
+        return SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
                 try {
-                    String graphId = (String) arguments.get("graphId");
-                    String nodeId = (String) arguments.get("nodeId");
-                    int depth = arguments.get("depth") != null
-                        ? ((Number) arguments.get("depth")).intValue()
-                        : 1;
+                    Map<String, Object> args = request.arguments();
+                    String graphId = (String) args.get("graphId");
+                    String nodeId = (String) args.get("nodeId");
+                    int depth = args.get("depth") != null ? ((Number) args.get("depth")).intValue() : 1;
 
                     KgResult<Map<String, Object>> result = kgService.query(graphId, nodeId, depth);
                     return toCallToolResult(result);
                 } catch (Exception e) {
                     return errorResult(e.getMessage());
                 }
-            }
-        );
+            })
+            .build();
     }
 
     private SyncToolSpecification createKgList() {
-        String schema = """
-            {
-                "type": "object",
-                "properties": {
-                    "graphId": {"type": "string"},
-                    "type": {"type": "string", "description": "Filter by node type"}
-                },
-                "required": ["graphId"]
-            }
-            """;
+        JsonSchema schema = buildSchema(
+            Map.of(
+                "graphId", Map.of("type", "string"),
+                "type", Map.of("type", "string", "description", "Filter by node type")
+            ),
+            List.of("graphId")
+        );
+        Tool tool = buildTool("kg_list", "List nodes in the knowledge graph", schema);
 
-        return new SyncToolSpecification(
-            new Tool("kg_list", "List nodes in the knowledge graph", schema),
-            (exchange, arguments) -> {
+        return SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
                 try {
-                    String graphId = (String) arguments.get("graphId");
-                    String type = (String) arguments.get("type");
+                    Map<String, Object> args = request.arguments();
+                    String graphId = (String) args.get("graphId");
+                    String type = (String) args.get("type");
 
                     KgResult<List<KgNode>> result = kgService.list(graphId, type);
                     return toCallToolResult(result);
                 } catch (Exception e) {
                     return errorResult(e.getMessage());
                 }
-            }
-        );
+            })
+            .build();
     }
 
     private CallToolResult toCallToolResult(KgResult<?> result) {
         try {
             String json = objectMapper.writeValueAsString(result);
-            return new CallToolResult(json, !result.success());
+            return new CallToolResult(List.of(new TextContent(json)), false);
         } catch (Exception e) {
             return errorResult(e.getMessage());
         }
     }
 
     private CallToolResult errorResult(String message) {
-        return new CallToolResult("{\"success\":false,\"error\":\"" + message + "\"}", true);
+        return new CallToolResult(List.of(new TextContent("{\"error\":\"" + message + "\"}")), true);
     }
 }
