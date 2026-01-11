@@ -40,3 +40,6 @@ data/templates/*.tmp
 
 # Skill testing (local only)
 test-skill/projects/
+
+# Claude Code config (local only)
+CLAUDE.md
