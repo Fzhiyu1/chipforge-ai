@@ -16,7 +16,7 @@ ChipForge-AI 是一个基于 MCP 协议的 FPGA 开发工具服务器，通过 C
 
 ## 技术栈
 
-- **语言**: Java 17+
+- **语言**: Java 21+
 - **框架**: Spring Boot 3.3.0
 - **协议**: MCP (Model Context Protocol) 0.12.1
 - **构建**: Maven
@@ -25,7 +25,7 @@ ChipForge-AI 是一个基于 MCP 协议的 FPGA 开发工具服务器，通过 C
 
 ### 前置要求
 
-- Java 17 或更高版本
+- Java 21 或更高版本
 - Maven 3.6+
 - Claude Code CLI
 
