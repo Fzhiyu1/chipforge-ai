@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: chipforge-ai
+
+server:
+  port: 8080
+
+# MCP Server Configuration
+mcp:
+  server:
+    name: chipforge-ai
+    version: 0.1.0
+    description: AI-powered FPGA development toolkit
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.fpga.mcp: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
