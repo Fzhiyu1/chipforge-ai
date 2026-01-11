@@ -22,8 +22,9 @@
 - [活跃任务](status/active-tasks.md)（0/10）
 - [待办队列](status/backlog.md)
 
-### 模块文档
-- [知识图谱模块](modules/knowledge-graph.md) - 设计完成
+### 设计文档
+- [知识图谱服务](../design/知识图谱服务设计.md) - 设计完成
+- [MCP 服务](../design/MCP服务设计.md) - 设计完成
 
 ### 参考
 - [设计决策](reference/decisions.md)
